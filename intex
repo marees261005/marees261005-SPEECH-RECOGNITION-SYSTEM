@@ -1,0 +1,37 @@
+#include <Voice-Control_Inferencing.h> 
+#include <driver/i2s.h>
+
+#define LED_PIN 2
+
+void setup() {
+    Serial.begin(115200);
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, LOW);
+    // Initialize your microphone and I2S hardware configurations here
+}
+
+void loop() {
+    // Structural placeholder: Buffer fills and invokes inference pipeline
+    ei_impulse_result_t result = { 0 };
+    
+    // Obtain continuous signal data from the microphone buffer
+    signal_t signal;
+    numpy::signal_from_buffer(ei_mic_buffer, EI_CLASSIFIER_RAW_SAMPLE_COUNT, &signal);
+
+    // Run the local keyword spotting neural network model
+    EI_IMPULSE_ERROR r = run_classifier(&signal, &result, false);
+    if (r != EI_IMPULSE_OK) return;
+
+    // Check prediction classification confidence scores
+    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+        if (strcmp(result.classification[ix].label, "ON") == 0 && result.classification[ix].value > 0.85) {
+            digitalWrite(LED_PIN, HIGH);
+            Serial.println("Command Received: Actuator ON");
+        }
+        if (strcmp(result.classification[ix].label, "OFF") == 0 && result.classification[ix].value > 0.85) {
+            digitalWrite(LED_PIN, LOW);
+            Serial.println("Command Received: Actuator OFF");
+        }
+    }
+    delay(100);
+}
